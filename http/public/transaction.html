@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="pl">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+    <link rel="stylesheet" href="https://unpkg.com/spectre.css/dist/spectre.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/spectre.css/dist/spectre-exp.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/spectre.css/dist/spectre-icons.min.css">
+    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
+
+    <style>
+    code {
+        white-space: pre-wrap;       /* Since CSS 2.1 */
+        white-space: -moz-pre-wrap;  /* Mozilla, since 1999 */
+        white-space: -pre-wrap;      /* Opera 4-6 */
+        white-space: -o-pre-wrap;    /* Opera 7 */
+        word-wrap: break-word;       /* Internet Explorer 5.5+ */
+    }
+    </style>
+
+    <title>PatysCoin - offline tool to sign transaction</title>
+  </head>
+  <body>
+    <header class="navbar">
+      <section class="navbar-section">
+        <a href="https://blog.patys.pl" class="btn btn-link">Blog</a>
+        <a href="https://blog.patys.pl" class="btn btn-link">PatysCoin - strona główna</a>
+      </section>
+      <section class="navbar-center">
+        <!-- centered logo or brand -->
+      </section>
+      <section class="navbar-section">
+        <a href="https://facebook.com/patysblog" class="btn btn-link">Facebook</a>
+        <a href="https://github.com/patys" class="btn btn-link">GitHub</a>
+      </section>
+    </header>
+    <div class="divider text-center" data-content="TRANSAKCJE"></div>
+    <div class="container">
+      <div class="columns">
+        <div class="column col-6 col-mx-auto">
+          <h1>Narzędzie do tworzenia transakcji</h1>
+          <p>Tutaj możesz stworzyć swoją transakcję bez dostępu do internetu.</p>
+          <p>Narzędzie działa bezpośrednio w Twojej przeglądarce.</p>
+          <div class="form-group">
+            <label class="form-label" for="from">Od (Twój klucz publiczny)</label>
+            <input class="form-input" type="text" id="from" placeholder="Twój klucz publiczny">
+
+            <label class="form-label" for="to">Do (klucz publiczny osoby do której wysyłasz)</label>
+            <input class="form-input" type="text" id="to" placeholder="Klucz publiczny odbiorcy">
+
+            <label class="form-label" for="amount">Ilość PatysCoin którą chcesz wysłać</label>
+            <input class="form-input" type="number" id="amount" placeholder="Ilość PatysCoin">
+
+            <label class="form-label" for="private">Klucz prywatny do podpisania transakcji</label>
+            <input class="form-input" type="text" id="private" placeholder="Klucz prywatny">
+
+            <button class="btn btn-primary" id="generate">Stwórz transakcję</button>
+
+            <div class="divider text-center" data-content="TWOJA TRANSAKCJA DO WYSYŁKI"></div>
+            <div class="panel">
+              <div class="panel-header">
+                <div class="panel-title">Transakcja</div>
+              </div>
+              <div class="panel-nav">
+                <!-- navigation components: tabs, breadcrumbs or pagination -->
+              </div>
+              <div class="panel-body">
+                <!-- contents -->
+                <pre class="code" data-lang="JSON"><code id="transaction"></code></pre>
+              </div>
+              <div class="panel-footer">
+                <button class="btn" id="copy">Skopiuj</button>
+                <button class="btn btn-primary" id="send">Wyślij do blockchain</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="http://rawgit.com/indutny/elliptic/master/dist/elliptic.min.js"></script>
+    <script src="https://bitwiseshiftleft.github.io/sjcl/sjcl.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
+    <script>
+    function makeid() {
+      var text = "";
+      var possible = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+
+      for (var i = 0; i < 32; i++)
+        text += possible.charAt(Math.floor(Math.random() * possible.length));
+
+      return text;
+    }
+
+    async function sha256(message) {
+    // encode as UTF-8
+    const msgBuffer = new TextEncoder('utf-8').encode(message);
+
+    // hash the message
+    const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+
+    // convert ArrayBuffer to Array
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+
+    // convert bytes to hex string
+    const hashHex = hashArray.map(b => ('00' + b.toString(16)).slice(-2)).join('');
+    return hashHex;
+  }
+
+    function hex(buffer) {
+      var hexCodes = [];
+      var view = new DataView(buffer);
+      for (var i = 0; i < view.byteLength; i += 4) {
+        // Using getUint32 reduces the number of iterations needed (we process 4 bytes each time)
+        var value = view.getUint32(i)
+        // toString(16) will give the hex representation of the number without padding
+        var stringValue = value.toString(16)
+        // We use concatenation and slice for padding
+        var padding = '00000000'
+        var paddedValue = (padding + stringValue).slice(-padding.length)
+        hexCodes.push(paddedValue);
+      }
+
+      // Join all the hex strings into one
+      return hexCodes.join("");
+    }
+    //
+    // sha256("foobar").then(function(digest) {
+    //   console.log(digest);
+    // }); // outputs "c3ab8ff13720e8ad9047dd39466b3c8974e592c2fa383d4a3960714caef0c4f2"
+
+    async function sign(privateKey, transaction) {
+      const hashedData = await sha256(JSON.stringify(transaction));
+      console.log(hashedData);
+      return elliptic.ec('secp256k1')
+        .keyFromPrivate(privateKey ,'hex')
+        .sign(hashedData).toDER('hex');
+    }
+
+    async function calculateHash(id, signData, data) {
+      const dataToCalculate = JSON.stringify(id + signData + JSON.stringify(data));
+      console.log(dataToCalculate);
+      let c = await sha256(dataToCalculate);
+      return c
+    }
+
+    function copy() {
+      let range = document.getSelection().getRangeAt(0);
+      range.selectNode(document.getElementById("transaction"));
+      window.getSelection().addRange(range);
+      document.execCommand("copy")
+    }
+
+    function createTransaction() {
+      const order = {
+        from: document.getElementById('from').value,
+        to: document.getElementById('to').value,
+        amount: document.getElementById('amount').value
+      }
+
+      sign(document.getElementById('private').value, order)
+        .then((signed) => {
+          let transaction = {
+            id: makeid(),
+            data: order,
+            sign: signed,
+          }
+
+          calculateHash(transaction.id, transaction.sign, order)
+            .then(hash => {
+              transaction.hash = hash;
+              document.getElementById('transaction').innerHTML= JSON.stringify(transaction);
+            });
+        })
+    }
+
+    function send() {
+      const xhr = new XMLHttpRequest();
+      const transaction = JSON.stringify(document.getElementById("transaction").innerHTML);
+      console.log(transaction);
+
+      xhr.open('POST', '/new/transaction');
+      xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+      xhr.onload = function() {
+          if (xhr.status === 200) {
+            console.log(xhr.response);
+            Toastify({
+              text: `Odpowiedź serwera: ${xhr.response}`,
+              duration: 3000,
+              close: true,
+              backgroundColor: "linear-gradient(to right, #00a0a0, #00a0c0)",
+            }).showToast();
+          }
+          else if (xhr.status !== 200) {
+            Toastify({
+              text: `Coś poszło nie tak: ${xhr.status}`,
+              duration: 3000,
+              close: true,
+              backgroundColor: "linear-gradient(to right, #ffa049, #ff9090)",
+            }).showToast();
+          }
+      };
+      xhr.send(encodeURI('transaction=' + transaction));
+
+    }
+
+    document.getElementById('generate').onclick = createTransaction;
+    document.getElementById('copy').onclick = copy;
+    document.getElementById('send').onclick = send;
+    </script>
+  </body>
+</html>

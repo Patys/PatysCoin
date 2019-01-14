@@ -1,0 +1,44 @@
+{
+  "name": "PatysCoin",
+  "version": "0.0.1",
+  "description": "Blockchain implementation for IoT in JavaScript",
+  "main": "http/server.js",
+  "scripts": {
+    "test": "jest --coverage --coverageDirectory=coverage/jest",
+    "start": "node http/server.js",
+    "doc": "jsdoc -r -d docs -c jsdoc.config.json http/* tools/* blockchain/*",
+    "eslint": "eslint blockchain/ tools/",
+    "pre-push": "yarn eslint && yarn test && yarn doc",
+    "pre-commit": "yarn eslint && yarn test"
+  },
+  "keywords": [
+    "blockchain"
+  ],
+  "author": "Patryk Szczygło",
+  "license": "ISC",
+  "dependencies": {
+    "body-parser": "^1.18.3",
+    "dotenv": "^6.2.0",
+    "express": "^4.16.4",
+    "secp256k1": "^3.5.0",
+    "ws": "^6.0.0"
+  },
+  "devDependencies": {
+    "eslint": "^5.10.0",
+    "eslint-config-airbnb-base": "^13.1.0",
+    "eslint-config-standard": "^12.0.0",
+    "eslint-plugin-import": "^2.14.0",
+    "eslint-plugin-node": "^8.0.0",
+    "eslint-plugin-promise": "^4.0.1",
+    "eslint-plugin-standard": "^4.0.0",
+    "husky": "^1.2.0",
+    "jest": "^23.6.0",
+    "jsdoc": "^3.5.5"
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "yarn pre-commit",
+      "pre-push": "yarn pre-push"
+    }
+  }
+}
